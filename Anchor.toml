@@ -6,7 +6,7 @@ skip-lint = false       # Set to true to skip linting
 
 # Localnet-specific settings for your Solana programs
 [programs.localnet]
-crowdfunding = "32Qg9Pybde94crQEU8GaoBbhsMtjm2uer3MJZKLDbvHe"  # Ensure this ID is correct
+crowdfunding = "GvMJqWacCRw8t3sbTBWArPPG84dZdz45GZZRxJjE6ori"  # Ensure this ID is correct
 
 # Registry URL for interacting with a specific registry
 [registry]
