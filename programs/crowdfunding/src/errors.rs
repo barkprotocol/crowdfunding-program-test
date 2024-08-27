@@ -1,29 +1,28 @@
+// src/errors.rs
 use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum Errors {
-    #[msg("The start time of the campaign is in the past.")]
+    #[msg("The start time is too early.")]
     StartTimeEarly,
-    #[msg("The end time must be after the start time.")]
+    #[msg("The end time is too short.")]
     EndTimeSmall,
-    #[msg("The goal amount must be greater than zero.")]
+    #[msg("The goal cannot be zero.")]
     GoalZero,
-    #[msg("Campaign has already started.")]
+    #[msg("The campaign has already started.")]
     CampaignStarted,
-    #[msg("Campaign is not yet started.")]
-    CampaignNotStarted,
-    #[msg("Campaign is over.")]
+    #[msg("The campaign has already ended.")]
     CampaignOver,
-    #[msg("Donations have already been completed.")]
+    #[msg("The donation has been completed.")]
     DonationCompleted,
-    #[msg("Donation amount must be greater than zero.")]
+    #[msg("The donation amount cannot be zero.")]
     AmountZero,
-    #[msg("Campaign donations are not yet completed.")]
-    DonationNotCompleted,
-    #[msg("Donations have already been claimed.")]
-    DonationsClaimed,
-    #[msg("Campaign has not yet ended.")]
+    #[msg("The campaign has not started.")]
+    CampaignNotStarted,
+    #[msg("The campaign is not yet over.")]
     CampaignNotOver,
-    #[msg("End time of the campaign must be after the current time.")]
-    EndTimeSmall,
+    #[msg("The donation has already been completed.")]
+    DonationNotCompleted,
+    #[msg("The donations have already been claimed.")]
+    DonationsClaimed,
 }
