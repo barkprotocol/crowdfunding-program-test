@@ -9,7 +9,7 @@ use state::*;
 use errors::*;
 use events::*;
 
-declare_id!("32Qg9Pybde94crQEU8GaoBbhsMtjm2uer3MJZKLDbvHe");
+declare_id!("GvMJqWacCRw8t3sbTBWArPPG84dZdz45GZZRxJjE6ori");
 
 #[program]
 pub mod crowdfunding {
