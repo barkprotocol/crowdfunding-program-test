@@ -4,7 +4,7 @@ import { getProgramDerivedCampaign, getProgramDerivedContribution } from "./addr
 
 // Define the provider
 const provider = anchor.getProvider();
-const programId = new PublicKey("YOUR_PROGRAM_ID"); // Replace with your actual program ID
+const programId = new PublicKey("GvMJqWacCRw8t3sbTBWArPPG84dZdz45GZZRxJjE6ori"); // Replace with your actual program ID
 const program = new anchor.Program(idl, programId, provider);
 
 /**
