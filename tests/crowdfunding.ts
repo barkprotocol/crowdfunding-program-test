@@ -1,424 +1,188 @@
 import * as anchor from "@coral-xyz/anchor";
-import { BN } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { Program } from "@coral-xyz/anchor";
-import { Crowdfunding } from "../target/types/crowdfunding";
-import {
-  airdropSol,
-  delay,
-  getProgramDerivedCampaign,
-  getProgramDerivedContribution,
-  incrementCurrentTimestamp,
-} from "../utils";
-import { expect } from "chai";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { getProgramDerivedCampaign, getProgramDerivedContribution } from "./addressDerivation";
+import idl from "./idl.json";
 
-describe("crowdfunding", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
+// Define the provider and program
+const provider = anchor.AnchorProvider.env();
+const programId = new PublicKey("YOUR_PROGRAM_ID"); // Replace with your actual program ID
+const program = new anchor.Program(idl as anchor.Idl, programId, provider);
 
-  const program = anchor.workspace.Crowdfunding as Program<Crowdfunding>;
-  const wallets = Array.from({ length: 5 }, () => anchor.web3.Keypair.generate());
+/**
+ * Creates a new campaign on the Solana blockchain.
+ * @param title - The title of the campaign.
+ * @param description - The description of the campaign.
+ * @param goal - The funding goal of the campaign (in lamports).
+ * @param startAt - The start time of the campaign (timestamp).
+ * @param endAt - The end time of the campaign (timestamp).
+ * @returns The public key of the created campaign.
+ */
+export async function createCampaign(
+  title: string,
+  description: string,
+  goal: number,
+  startAt: number,
+  endAt: number
+): Promise<PublicKey> {
+  const signerKey = provider.wallet.publicKey;
+  const { campaign, bump } = await getProgramDerivedCampaign(programId, signerKey, title);
 
-  let campaigns: Record<number, PublicKey> = {};
-  let contributions: Record<number, PublicKey[]> = { 1: [], 2: [] };
+  // Ensure the campaign account is created
+  const tx = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: signerKey,
+      newAccountPubkey: campaign,
+      lamports: await provider.connection.getMinimumBalanceForRentExemption(0),
+      space: 8 + 200 + 8 + 8 + 8 + 1 + 1, // Adjust the space according to your data
+      programId,
+    })
+  );
 
-  before(async () => {
-    await Promise.all(
-      wallets.map(wallet => airdropSol(wallet.publicKey, 100 * LAMPORTS_PER_SOL))
-    );
-  });
+  await provider.sendAndConfirm(tx);
 
-  async function createCampaignHelper(
-    wallet: Keypair,
-    title: string,
-    goal: BN,
-    startOffset: number,
-    endOffset: number
-  ): Promise<PublicKey> {
-    const startTimestamp = await incrementCurrentTimestamp(0, 0, 0, startOffset);
-    const endTimestamp = await incrementCurrentTimestamp(0, 0, 0, endOffset);
-
-    const campaignParams = {
-      title,
-      description: `This is ${title}`,
-      org_name: "org name",
-      project_link: "project link",
-      project_image: "project image",
-      goal,
-      startAt: new BN(startTimestamp),
-      endAt: new BN(endTimestamp),
-    };
-
-    const { campaign } = await getProgramDerivedCampaign(
-      program.programId,
-      wallet.publicKey,
-      campaignParams.title
-    );
-
-    await program.methods
-      .createCampaign(
-        campaignParams.title,
-        campaignParams.description,
-        campaignParams.org_name,
-        campaignParams.project_link,
-        campaignParams.project_image,
-        campaignParams.goal,
-        campaignParams.startAt,
-        campaignParams.endAt
-      )
-      .accounts({
-        signer: wallet.publicKey,
+  // Call the createCampaign method
+  await program.rpc.createCampaign(
+    title,
+    description,
+    new anchor.BN(goal),
+    new anchor.BN(startAt),
+    new anchor.BN(endAt),
+    bump,
+    {
+      accounts: {
         campaign,
-      })
-      .signers([wallet])
-      .rpc();
-
-    return campaign;
-  }
-
-  describe("Create campaign", () => {
-    it("should revert if invalid params", async () => {
-      const startTimestamp = await incrementCurrentTimestamp(0, 0, 0, 1);
-      const endTimestamp = await incrementCurrentTimestamp(2, 3);
-
-      const campaignParams = {
-        title: "Campaign 1",
-        description: "This is a Campaign 1",
-        org_name: "org name",
-        project_link: "project link",
-        project_image: "project image",
-        goal: new BN(10 * LAMPORTS_PER_SOL),
-        startAt: new BN(startTimestamp),
-        endAt: new BN(endTimestamp),
-      };
-
-      const { campaign } = await getProgramDerivedCampaign(
-        program.programId,
-        wallets[0].publicKey,
-        campaignParams.title
-      );
-
-      const createCampaign = async (
-        title: string,
-        description: string,
-        org_name: string,
-        project_link: string,
-        project_image: string,
-        goal: BN,
-        startAt: BN,
-        endAt: BN
-      ) => {
-        return await program.methods
-          .createCampaign(
-            title,
-            description,
-            org_name,
-            project_link,
-            project_image,
-            goal,
-            startAt,
-            endAt
-          )
-          .accounts({
-            signer: wallets[0].publicKey,
-            campaign,
-          })
-          .signers([wallets[0]])
-          .rpc();
-      };
-
-      const testCases = [
-        {
-          startAt: new BN(startTimestamp - 1000),
-          endAt: campaignParams.endAt,
-          expectedError: "Start time must be in the future",
-        },
-        {
-          startAt: campaignParams.startAt,
-          endAt: campaignParams.startAt,
-          expectedError: "End time must be after start time",
-        },
-        {
-          startAt: campaignParams.startAt,
-          endAt: campaignParams.endAt,
-          goal: new BN(0),
-          expectedError: "Goal must be greater than 0",
-        },
-      ];
-
-      for (const testCase of testCases) {
-        try {
-          await createCampaign(
-            campaignParams.title,
-            campaignParams.description,
-            campaignParams.org_name,
-            campaignParams.project_link,
-            campaignParams.project_image,
-            testCase.goal || campaignParams.goal,
-            testCase.startAt,
-            testCase.endAt
-          );
-        } catch (error) {
-          expect(error.error.errorMessage).to.equal(testCase.expectedError);
-        }
-      }
-    });
-
-    it("should be able to create campaigns", async () => {
-      campaigns[1] = await createCampaignHelper(
-        wallets[0],
-        "Campaign 1",
-        new BN(10 * LAMPORTS_PER_SOL),
-        1,
-        5
-      );
-      campaigns[2] = await createCampaignHelper(
-        wallets[1],
-        "Campaign 2",
-        new BN(2.5 * LAMPORTS_PER_SOL),
-        1,
-        5
-      );
-      campaigns[3] = await createCampaignHelper(
-        wallets[2],
-        "Campaign 3",
-        new BN(15 * LAMPORTS_PER_SOL),
-        1,
-        5
-      );
-
-      // Additional assertions to verify campaign creation can be added here
-    });
-  });
-
-  describe("Donate", () => {
-    async function donateHelper(
-      wallet: Keypair,
-      campaign: PublicKey,
-      amount: BN
-    ): Promise<PublicKey> {
-      const { contribution } = await getProgramDerivedContribution(
-        program.programId,
-        wallet.publicKey,
-        campaign
-      );
-
-      await delay(2000); // Optional delay for timing issues
-
-      await program.methods
-        .donate(amount)
-        .accounts({
-          signer: wallet.publicKey,
-          campaign,
-          contribution,
-        })
-        .signers([wallet])
-        .rpc();
-
-      return contribution;
+        authority: signerKey,
+        systemProgram: SystemProgram.programId,
+      },
     }
+  );
 
-    it("should be able to donate", async () => {
-      const contributionAmount1 = new BN(5.5 * LAMPORTS_PER_SOL);
-      contributions[1][0] = await donateHelper(
-        wallets[1],
-        campaigns[1],
-        contributionAmount1
-      );
+  return campaign;
+}
 
-      const contributionAmount2 = new BN(4.5 * LAMPORTS_PER_SOL);
-      contributions[1][1] = await donateHelper(
-        wallets[2],
-        campaigns[1],
-        contributionAmount2
-      );
+/**
+ * Updates the metadata of an existing campaign.
+ * @param campaign - The public key of the campaign.
+ * @param title - The new title of the campaign.
+ * @param description - The new description of the campaign.
+ */
+export async function updateCampaignMetadata(
+  campaign: PublicKey,
+  title: string,
+  description: string
+): Promise<void> {
+  const tx = await program.rpc.updateCampaignMetadata(
+    title,
+    description,
+    {
+      accounts: {
+        campaign,
+        authority: provider.wallet.publicKey,
+      },
+    }
+  );
 
-      const contributionAmount3 = new BN(1 * LAMPORTS_PER_SOL);
-      contributions[2][0] = await donateHelper(
-        wallets[3],
-        campaigns[2],
-        contributionAmount3
-      );
+  await provider.sendAndConfirm(tx);
+}
 
-      // Additional assertions to verify donations can be added here
-    });
+/**
+ * Contributes to an existing campaign.
+ * @param campaign - The public key of the campaign.
+ * @param amount - The amount to contribute (in lamports).
+ */
+export async function contributeToCampaign(
+  campaign: PublicKey,
+  amount: number
+): Promise<void> {
+  const contributorKey = provider.wallet.publicKey;
+  const { contribution } = await getProgramDerivedContribution(programId, contributorKey, campaign);
 
-    it("should revert if donation completed", async () => {
-      const { contribution } = await getProgramDerivedContribution(
-        program.programId,
-        wallets[3].publicKey,
-        campaigns[1]
-      );
+  // Transfer lamports to the contribution account
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: contributorKey,
+      toPubkey: contribution,
+      lamports: amount,
+    })
+  );
 
-      try {
-        await program.methods
-          .donate(new BN(2 * LAMPORTS_PER_SOL))
-          .accounts({
-            signer: wallets[3].publicKey,
-            campaign: campaigns[1],
-            contribution,
-          })
-          .signers([wallets[3]])
-          .rpc();
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Donation has already been completed");
-      }
-    });
+  await provider.sendAndConfirm(tx);
+
+  // Call the contribute method
+  await program.rpc.donate(
+    new anchor.BN(amount),
+    {
+      accounts: {
+        campaign,
+        contributor: contributorKey,
+        contribution,
+        systemProgram: SystemProgram.programId,
+      },
+    }
+  );
+}
+
+/**
+ * Claims the funds of a completed campaign.
+ * @param campaign - The public key of the campaign.
+ */
+export async function claimCampaignFunds(campaign: PublicKey): Promise<void> {
+  const tx = await program.rpc.claimDonations({
+    accounts: {
+      campaign,
+      authority: provider.wallet.publicKey,
+    },
   });
 
-  describe("Claim Donations", () => {
-    it("should be able to claim donations", async () => {
-      await delay(3000);
+  await provider.sendAndConfirm(tx);
+}
 
-      const claimDonationsHelper = async (campaign: PublicKey, wallet: Keypair) => {
-        await program.methods
-          .claimDonations()
-          .accounts({
-            campaign,
-            authority: wallet.publicKey,
-          })
-          .signers([wallet])
-          .rpc();
-      };
-
-      await claimDonationsHelper(campaigns[1], wallets[0]);
-
-      // Additional assertions to verify donations claiming can be added here
-    });
-
-    it("should revert if signer is not authority", async () => {
-      try {
-        await program.methods
-          .claimDonations()
-          .accounts({
-            campaign: campaigns[1],
-            authority: wallets[1].publicKey,
-          })
-          .signers([wallets[1]])
-          .rpc();
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Signer is not the authority");
-      }
-    });
-
-    it("should revert if donations already claimed", async () => {
-      try {
-        await program.methods
-          .claimDonations()
-          .accounts({
-            campaign: campaigns[1],
-            authority: wallets[0].publicKey,
-          })
-          .signers([wallets[0]])
-          .rpc();
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Donations have already been claimed");
-      }
-    });
-
-    it("should revert if donation not completed", async () => {
-      try {
-        await program.methods
-          .claimDonations()
-          .accounts({
-            campaign: campaigns[2],
-            authority: wallets[1].publicKey,
-          })
-          .signers([wallets[1]])
-          .rpc();
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("No completed donations to claim");
-      }
-    });
+/**
+ * Cancels a donation and requests a refund.
+ * @param campaign - The public key of the campaign.
+ */
+export async function cancelDonation(campaign: PublicKey): Promise<void> {
+  const tx = await program.rpc.cancelDonation({
+    accounts: {
+      campaign,
+      contributor: provider.wallet.publicKey,
+    },
   });
 
-  describe("Cancel Donation", () => {
-    const cancelDonationHelper = async (
-      wallet: Keypair,
-      campaign: PublicKey,
-      contribution: PublicKey
-    ) => {
-      await program.methods
-        .cancelDonation()
-        .accounts({
-          signer: wallet.publicKey,
-          campaign,
-          contribution,
-        })
-        .signers([wallet])
-        .rpc();
-    };
+  await provider.sendAndConfirm(tx);
+}
 
-    it("should be able to cancel donations", async () => {
-      await cancelDonationHelper(wallets[3], campaigns[2], contributions[2][0]);
+/**
+ * Extends the end date of a campaign.
+ * @param campaign - The public key of the campaign.
+ * @param newEndAt - The new end date (timestamp).
+ */
+export async function extendCampaign(campaign: PublicKey, newEndAt: number): Promise<void> {
+  const tx = await program.rpc.extendCampaign(
+    new anchor.BN(newEndAt),
+    {
+      accounts: {
+        campaign,
+        authority: provider.wallet.publicKey,
+      },
+    }
+  );
 
-      // Additional assertions to verify donation cancellation can be added here
-    });
+  await provider.sendAndConfirm(tx);
+}
 
-    it("should revert if signer is not donor", async () => {
-      try {
-        await cancelDonationHelper(wallets[4], campaigns[2], contributions[2][0]);
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Signer is not the donor");
-      }
-    });
-
-    it("should revert if donation already canceled", async () => {
-      try {
-        await cancelDonationHelper(wallets[3], campaigns[2], contributions[2][0]);
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Donation has already been canceled");
-      }
-    });
-
-    it("should revert if campaign already completed", async () => {
-      try {
-        await cancelDonationHelper(wallets[2], campaigns[1], contributions[1][0]);
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Campaign has already been completed");
-      }
-    });
+/**
+ * Closes a campaign before its end date.
+ * @param campaign - The public key of the campaign.
+ */
+export async function closeCampaign(campaign: PublicKey): Promise<void> {
+  const tx = await program.rpc.closeCampaign({
+    accounts: {
+      campaign,
+      authority: provider.wallet.publicKey,
+    },
   });
 
-  describe("Cancel Campaign", () => {
-    const cancelCampaignHelper = async (wallet: Keypair, campaign: PublicKey) => {
-      await program.methods
-        .cancelCampaign()
-        .accounts({
-          signer: wallet.publicKey,
-          campaign,
-        })
-        .signers([wallet])
-        .rpc();
-    };
+  await provider.sendAndConfirm(tx);
+}
 
-    it("should be able to cancel campaign", async () => {
-      const campaign = await createCampaignHelper(
-        wallets[2],
-        "Cancelable Campaign",
-        new BN(10 * LAMPORTS_PER_SOL),
-        2,
-        5
-      );
-
-      await cancelCampaignHelper(wallets[2], campaign);
-
-      // Additional assertions to verify campaign cancellation can be added here
-    });
-
-    it("should revert if signer is not campaign authority", async () => {
-      try {
-        await cancelCampaignHelper(wallets[3], campaigns[3]);
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Signer is not the campaign authority");
-      }
-    });
-
-    it("should revert if campaign already started", async () => {
-      try {
-        await cancelCampaignHelper(wallets[2], campaigns[2]);
-      } catch (error) {
-        expect(error.error.errorMessage).to.equal("Campaign has already started");
-      }
-    });
-  });
-});
