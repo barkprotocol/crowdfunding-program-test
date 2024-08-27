@@ -5,7 +5,7 @@ import idl from "./idl.json";
 
 // Define the provider and program
 const provider = anchor.AnchorProvider.env();
-const programId = new PublicKey("YOUR_PROGRAM_ID"); // Replace with your actual program ID
+const programId = new PublicKey("GvMJqWacCRw8t3sbTBWArPPG84dZdz45GZZRxJjE6ori"); // Replace with your actual program ID
 const program = new anchor.Program(idl as anchor.Idl, programId, provider);
 
 /**
