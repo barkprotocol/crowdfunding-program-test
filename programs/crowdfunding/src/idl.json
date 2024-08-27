@@ -1,0 +1,192 @@
+{
+    "version": "0.1.0",
+    "name": "crowdfunding",
+    "instructions": [
+      {
+        "name": "createCampaign",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "signer",
+            "isMut": false,
+            "isSigner": true
+          }
+        ],
+        "args": [
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "goal",
+            "type": "u64"
+          },
+          {
+            "name": "startAt",
+            "type": "i64"
+          },
+          {
+            "name": "endAt",
+            "type": "i64"
+          }
+        ]
+      },
+      {
+        "name": "donate",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "contributor",
+            "isMut": false,
+            "isSigner": true
+          }
+        ],
+        "args": [
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      },
+      {
+        "name": "cancelDonation",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "contributor",
+            "isMut": false,
+            "isSigner": true
+          }
+        ]
+      },
+      {
+        "name": "claimDonations",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "organizer",
+            "isMut": false,
+            "isSigner": true
+          }
+        ]
+      },
+      {
+        "name": "updateCampaignMetadata",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "organizer",
+            "isMut": false,
+            "isSigner": true
+          }
+        ],
+        "args": [
+          {
+            "name": "title",
+            "type": "string",
+            "option": true
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "option": true
+          }
+        ]
+      },
+      {
+        "name": "extendCampaign",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "organizer",
+            "isMut": false,
+            "isSigner": true
+          }
+        ],
+        "args": [
+          {
+            "name": "newEndAt",
+            "type": "i64"
+          }
+        ]
+      },
+      {
+        "name": "closeCampaign",
+        "accounts": [
+          {
+            "name": "campaign",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "organizer",
+            "isMut": false,
+            "isSigner": true
+          }
+        ]
+      }
+    ],
+    "accounts": [
+      {
+        "name": "campaign",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "name": "goal",
+              "type": "u64"
+            },
+            {
+              "name": "startAt",
+              "type": "i64"
+            },
+            {
+              "name": "endAt",
+              "type": "i64"
+            },
+            {
+              "name": "donationsReceived",
+              "type": "u64"
+            }
+          ]
+        }
+      }
+    ]
+  }
+  

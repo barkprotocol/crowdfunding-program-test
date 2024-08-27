@@ -1,0 +1,28 @@
+{
+    "scripts": {
+      "lint:fix": "prettier \"**/*.{js,ts,rs}\" --write",
+      "lint": "prettier \"**/*.{js,ts,rs}\" --check",
+      "format": "npm run lint && npm run lint:fix",
+      "test": "anchor test",
+      "test:skip": "anchor test --skip-local-validator",
+      "test:watch": "mocha --watch",
+      "build": "anchor build",
+      "deploy": "anchor deploy",
+      "clean": "anchor clean"
+    },
+    "dependencies": {
+      "@coral-xyz/anchor": "^0.30.1"
+    },
+    "devDependencies": {
+      "@types/bn.js": "^5.2.0",
+      "@types/chai": "^4.3.17",
+      "@types/mocha": "^10.0.7",
+      "chai": "^5.1.1",
+      "mocha": "^10.7.3",
+      "prettier": "^3.3.3",
+      "prettier-plugin-rust": "^0.1.9",
+      "ts-mocha": "^10.0.0",
+      "typescript": "^5.5.4"
+    }
+  }
+  

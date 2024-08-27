@@ -1,0 +1,22 @@
+[toolchain]
+# Toolchain features that can be toggled
+[features]
+seeds = false           # Set to true if your program uses seeds
+skip-lint = false       # Set to true to skip linting
+
+# Localnet-specific settings for your Solana programs
+[programs.localnet]
+crowdfunding = "32Qg9Pybde94crQEU8GaoBbhsMtjm2uer3MJZKLDbvHe"  # Ensure this ID is correct
+
+# Registry URL for interacting with a specific registry
+[registry]
+url = "https://api.crowdfund.dev"  # Verify this is the correct registry URL
+
+# Provider settings for connecting to the Solana cluster and wallet
+[provider]
+cluster = "devnet"        # Change to 'testnet' or 'mainnet' as needed
+wallet = "/wallet/devnet/dev-crowdfunding-keypair.json"  # Verify the path to your wallet JSON file
+
+# Custom scripts for managing tests and other development tasks
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"  # Adjust timeout and path if necessary
